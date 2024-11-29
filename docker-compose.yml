@@ -1,0 +1,96 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: ./apps/client/Dockerfile
+    container_name: yakkyofy-client
+    ports:
+      - "${CLIENT_PORT}:${CLIENT_PORT}"
+    volumes:
+      - ./apps/client:/app/apps/client
+      - ./packages:/app/packages
+    environment:
+      - VITE_BACKEND_URL=http://localhost:${SERVER_PORT}
+    depends_on:
+      - server
+    networks:
+      - yakkyofy-network
+
+  server:
+    build:
+      context: .
+      dockerfile: ./apps/server/Dockerfile
+    container_name: yakkyofy-server
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    volumes:
+      - ./apps/server:/app/apps/server
+      - ./packages:/app/packages
+    environment:
+      - PORT=${SERVER_PORT}
+      - MONGO_URL=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - RABBIT_MQ=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - yakkyofy-network
+
+  consumer:
+    build:
+      context: .
+      dockerfile: ./apps/consumer/Dockerfile
+    container_name: yakkyofy-consumer
+    volumes:
+      - ./apps/consumer:/app/apps/consumer
+      - ./packages:/app/packages
+    environment:
+      - MONGO_URL=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      - RABBIT_MQ=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - yakkyofy-network
+
+  mongodb:
+    image: mongo:8
+    container_name: yakkyofy-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - yakkyofy-network
+    security_opt:
+      - no-new-privileges:true
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: yakkyofy-rabbitmq
+    ports:
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - yakkyofy-network
+
+volumes:
+  mongodb_data:
+    name: yakkyofy-mongodb-data
+  rabbitmq_data:
+    name: yakkyofy-rabbitmq-data
+
+networks:
+  yakkyofy-network:
+    name: yakkyofy-network
+    driver: bridge
