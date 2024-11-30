@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { Screenshot } from '@interview/models'
+import { screenshotPublisher } from '../amqp'
 
 /**
  * Create new screenshot request
@@ -22,6 +23,19 @@ export const createScreenshot = async (req: Request, res: Response) => {
       url,
       status: 'queued'
     })
+
+    try {
+      // Publish message to RabbitMQ queue
+      await screenshotPublisher.send('screenshots', {
+        id: screenshot._id.toString(),
+        url: screenshot.url
+      })
+    } catch (error) {
+      // Remove the screenshot entry if queue operation fails
+      await Screenshot.findByIdAndDelete(screenshot._id)
+      console.error('❌ Failed to queue screenshot:', error)
+      return res.status(500).json({ message: 'Failed to queue screenshot request on server ❌' })
+    }
 
     return res.status(201).json({
       message: 'Screenshot request queued successfully',
