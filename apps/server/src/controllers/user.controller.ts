@@ -3,7 +3,7 @@ import { Request, Response } from 'express'
 import { IUser } from '@interview/types/models/user'
 import Joi from 'joi'
 import { User } from '@interview/models'
-import config from './config'
+import config from '../config'
 
 const login = async (req: Request, res: Response) => {
   res.sendStatus(200)

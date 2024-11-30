@@ -10,14 +10,20 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import helmet from 'helmet'
 import xss from 'xss-clean'
+import screenshotRoutes from './routes/screenshot.route'
 
 const app = express()
 app.use(helmet())
 app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(cors())
 
+app.use(
+  cors({
+    origin: 'http://localhost:8080',
+    methods: ['GET', 'POST'],
+  })
+)
 // sanitize request data
 app.use(xss())
 app.use(ExpressMongoSanitize())
@@ -29,11 +35,10 @@ if (config.ENV !== 'development') app.set('trust proxy', 1)
 
 app.get('/', (req: Request, res: Response) => res.send('Yep im alive'))
 
-// TODO: add routes here. or refactor with a better scaffolding if you wish!
+app.use('/api', screenshotRoutes)
 
 // 404
 app.use((req: Request, res: Response) => res.status(404).json({ message: 'Not found' }))
-
 const server = app.listen(config.PORT, () => console.info('Webserver started on port ' + config.PORT))
 
 process.on('SIGTERM', () => {
