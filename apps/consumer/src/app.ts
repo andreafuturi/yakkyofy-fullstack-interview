@@ -1,21 +1,29 @@
 import { Connection } from 'rabbitmq-client'
 import config from './config'
+import { connection } from './database'
+import { takeScreenshot } from './services/takeScreenshot'
 
 const rabbit = new Connection(config.RABBIT_MQ)
 rabbit.on('error', err => console.error('RabbitMQ connection error', err))
 rabbit.on('connection', () => console.info('RabbitMQ Connection successfully (re)established'))
 
-// TODO: here you should create your subscriber which is going to consume messages from the queue
-// in this case, the consumer is going to be a microservice which is going to delete users from the database
+rabbit
+  .createConsumer({ queue: 'screenshots' }, async msg => {
+    console.log('Connection state:', connection.readyState)
+    console.log('Received message:', msg.body)
 
-// subscribers
-// const subscriber = rabbit.createConsumer({}, (msg) => {})
-// subscriber.on('error', err => console.error('consumer error (saturation)', err))
+    try {
+      await takeScreenshot(msg.body.id)
+    } catch (error) {
+      console.error('❌ Processing error:', error)
+    }
+  })
+  .on('error', err => console.error('❌ Consumer error:', err))
 
 async function onShutdown() {
-  // console.info('SIGTERM signal received: closing RabbitMQ connections')
-  // await subscriber.close()
+  console.info('SIGTERM signal received: closing RabbitMQ connections')
   await rabbit.close()
 }
+
 process.on('SIGINT', onShutdown)
 process.on('SIGTERM', onShutdown)
